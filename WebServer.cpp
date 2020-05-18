@@ -3,24 +3,36 @@
 //
 
 #include "WebServer.h"
+#include "HttpData.h"
+#include <functional>
 #include <sys/socket.h>
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <cstring>
 #include <cstdlib>
+#include <iostream>
 
-WebServer::WebServer(int threadNum_, int port_, int backlog_) :
+WebServer::WebServer(EventLoop *loop_, int threadNum_, int port_, int backlog_) :
+        loop(loop_),
         port(port_),
+        backlog(backlog_),
         threadNum(threadNum_),
-        backlog(backlog_) {
+        eventLoopThreadPool(new EventLoopThreadPool(loop_, threadNum_)),
+        acceptChannel(new Channel(loop_)) {
     if (!initSocket()) {
         // todo 日志
         abort();
     }
+    acceptChannel->setFd(socketFd);
 }
 
 void WebServer::run() {
-
+    std::cout << "run" << std::endl;
+    eventLoopThreadPool->start();
+    acceptChannel->setEvents(EPOLLIN | EPOLLET);
+    acceptChannel->setReadHandler(std::bind(&WebServer::acceptConnection, this));
+    acceptChannel->setConnHandler(std::bind(&WebServer::handleThisConn, this));
+    loop->addPoller(acceptChannel, 0);
 }
 
 void WebServer::acceptConnection() {
@@ -34,8 +46,13 @@ void WebServer::acceptConnection() {
             // todo 日志
             return;
         }
+        EventLoop *loop_ = eventLoopThreadPool->getNextLoop();
+        std::shared_ptr<HttpData> req_info(new HttpData(loop_, socketFd));
+        req_info->getChannel()->setHolder(req_info);
+        loop_->queueInLoop(std::bind(&HttpData::newEvent, req_info));
     }
-
+    acceptChannel->setEvents(EPOLLIN | EPOLLET);
+    std::cout << "acceptConnection" << std::endl;
 }
 
 bool WebServer::initSocket() {
@@ -80,6 +97,10 @@ int WebServer::setSocketNonBlock(int socketFd) {
         return -1;
     }
     return 0;
+}
+
+void WebServer::handleThisConn() {
+    loop->updatePoller(acceptChannel);
 }
 
 WebServer::~WebServer() = default;
