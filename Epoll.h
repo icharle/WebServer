@@ -10,6 +10,9 @@
 #include <sys/epoll.h>
 #include "Channel.h"
 #include "Timer.h"
+#include "HttpData.h"
+#include <memory>
+#include <unordered_map>
 #include <vector>
 
 class Epoll {
@@ -22,11 +25,11 @@ public:
 
     void del(shareChannel request);
 
-    std::vector<shareChannel> poll();
+    std::vector<std::shared_ptr<Channel>> poll();
 
-    std::vector<shareChannel> getEventsRequest(int events_num);
+    std::vector<std::shared_ptr<Channel>> getEventsRequest(int events_num);
 
-    void add_timer(shareChannel request_data, int timeout);
+    void add_timer(std::shared_ptr<Channel> request_data, int timeout);
 
     int getEpollFd() {
         return epollFd;

@@ -41,12 +41,11 @@ void WebServer::acceptConnection() {
     socklen_t client_addrlen = sizeof(client_addr);
     int connect_fd = 0;
     while ((connect_fd = accept(socketFd, (struct sockaddr *) &client_addr, &client_addrlen)) > 0) {
-
+        EventLoop *loop_ = eventLoopThreadPool->getNextLoop();
         if (setSocketNonBlock(connect_fd) < 0) {
             // todo 日志
             return;
         }
-        EventLoop *loop_ = eventLoopThreadPool->getNextLoop();
         std::shared_ptr<HttpData> req_info(new HttpData(loop_, socketFd));
         req_info->getChannel()->setHolder(req_info);
         loop_->queueInLoop(std::bind(&HttpData::newEvent, req_info));

@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include "time.h"
 #include "Util.h"
 #include <iostream>
 
@@ -49,8 +50,8 @@ std::string HttpData::getMime(std::string suffix) {
 
 HttpData::HttpData(EventLoop *loop, int connfd) :
         loop(loop),
-        channel(new Channel(loop, connfd)),
         fd(connfd),
+        channel(new Channel(loop, connfd)),
         method(METHOD_GET),
         version(HTTP1_1),
         connectionState(H_CONNECTED),
@@ -213,6 +214,7 @@ void HttpData::handleRead() {
         }
 
         if (httpProcessState == PARSE_URI) {
+            std::cout << "handleRead-PARSE_URI" << std::endl;
             URIState flag = this->parseURI();
             if (flag == PARSE_URI_AGAIN) {
                 break;
@@ -227,12 +229,14 @@ void HttpData::handleRead() {
         }
 
         if (httpProcessState == PARSE_HEADERS) {
+            std::cout << "handleRead-PARSE_HEADERS" << std::endl;
             HeaderState flag = this->parseHeaders();
             if (flag == PARSE_HEADER_AGAIN) {
                 break;
             } else if (flag == PARSE_HEADER_ERROR) {
                 error = true;
                 handleError(fd, 400, "Bad Request");
+                break;
             }
             if (method == METHOD_POST) {
                 httpProcessState = RECV_BODY;
@@ -242,6 +246,7 @@ void HttpData::handleRead() {
         }
 
         if (httpProcessState == RECV_BODY) {
+            std::cout << "handleRead-PARSE_RECV_BODY" << std::endl;
             int content_length = -1;
             if (headers.find("Content-length") != headers.end()) {
                 content_length = stoi(headers["Content-length"]);
@@ -257,6 +262,7 @@ void HttpData::handleRead() {
         }
 
         if (httpProcessState == ANALYSIS) {
+            std::cout << "handleRead-PARSE_ANALYSIS" << std::endl;
             AnalysisState flag = this->analysisRequest();
             if (flag == ANALYSIS_SUCC) {
                 httpProcessState = FINISH;
@@ -303,7 +309,7 @@ void HttpData::handleWrite() {
 void HttpData::handleConn() {
     seperateTimer();
     __uint32_t &events = channel->getEvents();
-    if (!error && connectionState == H_DISCONNECTED) {
+    if (!error && connectionState == H_CONNECTED) {
         if (events != 0) {
             int timeout = DEFAULT_EXPIRED_TIME;
             if (keepAlive) {
@@ -320,7 +326,7 @@ void HttpData::handleConn() {
             int timeout = DEFAULT_KEEP_ALIVE_TIME;
             loop->updatePoller(channel, timeout);
         } else {
-            events |= (EPOLLIN | EPOLLOUT);
+            events |= (EPOLLIN | EPOLLET);
             int timeout = (DEFAULT_KEEP_ALIVE_TIME >> 1);
             loop->updatePoller(channel, timeout);
         }

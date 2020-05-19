@@ -9,6 +9,7 @@
 #include "EventLoop.h"
 #include "EventLoopThread.h"
 #include <vector>
+#include <memory>
 #include <functional>
 
 class EventLoopThreadPool : noncopyable {

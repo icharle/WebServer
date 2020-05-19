@@ -6,7 +6,9 @@
 #define WEBNGINX_CHANNEL_H
 
 #include <functional>
+#include <string>
 #include <sys/epoll.h>
+#include <unordered_map>
 #include <memory>
 
 class EventLoop;

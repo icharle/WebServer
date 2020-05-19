@@ -3,6 +3,11 @@
 //
 
 #include "Channel.h"
+#include "EventLoop.h"
+#include <sys/epoll.h>
+#include <unistd.h>
+#include <queue>
+#include <cstdio>
 
 Channel::Channel(EventLoop *loop_) :
         loop(loop_),

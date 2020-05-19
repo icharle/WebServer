@@ -5,6 +5,7 @@
 #include "EventLoop.h"
 #include <unistd.h>
 #include "sys/eventfd.h"
+#include <sys/epoll.h>
 
 __thread EventLoop *t_loopInThisThread = 0;
 

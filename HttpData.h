@@ -10,6 +10,10 @@
 #include <memory>
 #include <unordered_map>
 #include <functional>
+#include <sys/epoll.h>
+#include <unistd.h>
+#include <vector>
+#include <map>
 
 class Channel;
 
@@ -114,7 +118,7 @@ private:
     bool error;
     std::string root;
     const static std::unordered_map<std::string, std::string> MimeType;
-    std::unordered_map<std::string, std::string> headers;
+    std::map<std::string, std::string> headers;
     std::weak_ptr<TimerNode> timer;
 
     static std::string getMime(std::string suffix);

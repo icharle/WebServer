@@ -3,14 +3,23 @@
 //
 
 #include "Epoll.h"
+#include <sys/epoll.h>
 #include <assert.h>
+#include "Util.h"
+#include <errno.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <string.h>
+#include <queue>
+#include <arpa/inet.h>
+#include <deque>
 
 #define MAXEVENTS 1024
 #define EPOLLWAIT_TIME 10000
 typedef std::shared_ptr<Channel> shareChannel;
 
 Epoll::Epoll() :
-        epollFd(epoll_create(MAXEVENTS)),
+        epollFd(epoll_create1(EPOLL_CLOEXEC)),
         events(MAXEVENTS) {
     assert(epollFd > 0);
 }
@@ -56,7 +65,7 @@ void Epoll::del(shareChannel request) {
     int fd = request->getFd();
     struct epoll_event event;
     event.data.fd = fd;
-    event.events = request->getEvents();
+    event.events = request->getLastEvents();
 
     if (epoll_ctl(epollFd, EPOLL_CTL_DEL, fd, &event) < 0) {
         // todo 日志

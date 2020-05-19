@@ -8,6 +8,13 @@
 #include <sys/prctl.h>
 #include <sys/types.h>
 #include <assert.h>
+#include <memory>
+#include <errno.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <linux/unistd.h>
+#include <stdint.h>
+using namespace std;
 
 namespace CurrentThread {
     __thread int t_cacheTid = 0;
@@ -34,7 +41,7 @@ struct TheadData {
     pid_t *tid_;
     CountDownLatch *latch_;
 
-    TheadData(const ThreadFunc &func, const std::string &name, pid_t *tid, CountDownLatch *latch) :
+    TheadData(const ThreadFunc& func, const string& name, pid_t *tid, CountDownLatch* latch) :
             func_(func),
             name_(name),
             tid_(tid),
@@ -63,7 +70,7 @@ void *startThread(void *obj) {
     return nullptr;
 }
 
-Thread::Thread(const ThreadFunc &func, const std::string &name) :
+Thread::Thread(const ThreadFunc& func, const std::string& name) :
         started_(false),
         joined_(false),
         pthread_(0),
