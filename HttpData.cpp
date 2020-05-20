@@ -41,14 +41,6 @@ const std::unordered_map<std::string, std::string> HttpData::MimeType = {
         {".tar",   "application/x-tar"},
 };
 
-std::string HttpData::getMime(std::string suffix) {
-    if (MimeType.find(suffix) == MimeType.end()) {
-        return "text/html";
-    }
-    auto it = MimeType.find(suffix);
-    return it->second;
-}
-
 HttpData::HttpData(EventLoop *loop, int connfd) :
         loop(loop),
         fd(connfd),
@@ -442,10 +434,18 @@ AnalysisState HttpData::analysisRequest() {
             header += std::string("Connection: Keep-Alive\r\n");
             header += "Keep-Alive: timeout=" + std::to_string(DEFAULT_KEEP_ALIVE_TIME) + "\r\n";
         }
-        int dot_pos = fileName.find(".");
+        size_t dot_pos = fileName.find_last_of(".");
         std::string filetype;
-        if (dot_pos < 0) {
-            filetype = getMime(fileName.substr(dot_pos));
+        if (dot_pos == std::string::npos) {
+            filetype = "text/html";
+        } else {
+            std::string suffix = fileName.substr(dot_pos);
+            auto it = MimeType.find(suffix);
+            if (it == MimeType.cend()) {
+                filetype = "text/html";
+            } else {
+                filetype = it->second;
+            }
         }
 
         struct stat sbuf;

@@ -121,8 +121,6 @@ private:
     std::map<std::string, std::string> headers;
     std::weak_ptr<TimerNode> timer;
 
-    static std::string getMime(std::string suffix);
-
     void handleRead();
 
     void handleWrite();
