@@ -27,7 +27,6 @@ WebServer::WebServer(EventLoop *loop_, int threadNum_, int port_, int backlog_) 
 }
 
 void WebServer::run() {
-    std::cout << "run" << std::endl;
     eventLoopThreadPool->start();
     acceptChannel->setEvents(EPOLLIN | EPOLLET);
     acceptChannel->setReadHandler(std::bind(&WebServer::acceptConnection, this));
@@ -46,12 +45,11 @@ void WebServer::acceptConnection() {
             // todo 日志
             return;
         }
-        std::shared_ptr<HttpData> req_info(new HttpData(loop_, socketFd));
+        std::shared_ptr<HttpData> req_info(new HttpData(loop_, connect_fd));
         req_info->getChannel()->setHolder(req_info);
         loop_->queueInLoop(std::bind(&HttpData::newEvent, req_info));
     }
     acceptChannel->setEvents(EPOLLIN | EPOLLET);
-    std::cout << "acceptConnection" << std::endl;
 }
 
 bool WebServer::initSocket() {

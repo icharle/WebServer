@@ -22,6 +22,7 @@ ssize_t readn(int fd, void *buff, size_t n) {
             } else if (errno == EAGAIN) {
                 return readSum;
             } else {
+                perror("read error");
                 return -1;
             }
         } else if (nread == 0) {
@@ -39,12 +40,13 @@ ssize_t readn(int fd, std::string &inBuffer, bool &zero) {
     ssize_t readSum = 0;
     while (true) {
         char buff[MAX_BUFF];
-        if ((nread == read(fd, buff, MAX_BUFF)) < 0) {
+        if ((nread = read(fd, buff, MAX_BUFF)) < 0) {
             if (errno == EINTR) {
                 continue;
             } else if (errno == EAGAIN) {
                 return readSum;
             } else {
+                perror("read error");
                 return -1;
             }
         } else if (nread == 0) {
@@ -68,6 +70,7 @@ ssize_t readn(int fd, std::string &inBuffer) {
             } else if (errno == EAGAIN) {
                 return readSum;
             } else {
+                perror("read error");
                 return -1;
             }
         } else if (nread == 0) {

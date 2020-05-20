@@ -13,6 +13,7 @@
 #include "time.h"
 #include "Util.h"
 #include <iostream>
+#include <stdio.h>
 
 const __uint32_t DEFALT_EVENT = EPOLLIN | EPOLLET | EPOLLONESHOT;
 const int DEFAULT_EXPIRED_TIME = 2000; // ms
@@ -192,17 +193,17 @@ HeaderState HttpData::parseHeaders() {
 }
 
 void HttpData::handleRead() {
-    std::cout << "handleRead" << std::endl;
     __uint32_t &events = channel->getEvents();
     do {
         bool zero = false;
         int read_num = readn(fd, inBuffer, zero);
+        std::cout << "\nRequest: \n" << inBuffer << std::endl;
         if (connectionState == H_DISCONNECTING) {
             inBuffer.clear();
             break;
         }
         if (read_num < 0) {
-            // todo 日志
+            perror("handleRead: 1");
             error = true;
             handleError(fd, 400, "Bad Request");
             break;
@@ -214,11 +215,11 @@ void HttpData::handleRead() {
         }
 
         if (httpProcessState == PARSE_URI) {
-            std::cout << "handleRead-PARSE_URI" << std::endl;
             URIState flag = this->parseURI();
             if (flag == PARSE_URI_AGAIN) {
                 break;
             } else if (flag == PARSE_URI_ERROR) {
+                perror("handleRead: 2");
                 inBuffer.clear();
                 error = true;
                 handleError(fd, 400, "Bad Request");
@@ -229,11 +230,11 @@ void HttpData::handleRead() {
         }
 
         if (httpProcessState == PARSE_HEADERS) {
-            std::cout << "handleRead-PARSE_HEADERS" << std::endl;
             HeaderState flag = this->parseHeaders();
             if (flag == PARSE_HEADER_AGAIN) {
                 break;
             } else if (flag == PARSE_HEADER_ERROR) {
+                perror("handleRead: 3");
                 error = true;
                 handleError(fd, 400, "Bad Request");
                 break;
@@ -246,7 +247,6 @@ void HttpData::handleRead() {
         }
 
         if (httpProcessState == RECV_BODY) {
-            std::cout << "handleRead-PARSE_RECV_BODY" << std::endl;
             int content_length = -1;
             if (headers.find("Content-length") != headers.end()) {
                 content_length = stoi(headers["Content-length"]);
@@ -262,7 +262,6 @@ void HttpData::handleRead() {
         }
 
         if (httpProcessState == ANALYSIS) {
-            std::cout << "handleRead-PARSE_ANALYSIS" << std::endl;
             AnalysisState flag = this->analysisRequest();
             if (flag == ANALYSIS_SUCC) {
                 httpProcessState = FINISH;
@@ -295,6 +294,7 @@ void HttpData::handleWrite() {
     if (!error && connectionState != H_DISCONNECTED) {
         __uint32_t &events = channel->getEvents();
         if (writen(fd, outBuffer) < 0) {
+            perror("handleWrite: writen");
             // todo 日志
             events = 0;
             error = true;
@@ -434,11 +434,10 @@ AnalysisState HttpData::analysisRequest() {
     if (method == METHOD_POST) {
 
     } else if (method == METHOD_GET) {
-        std::cout << "analysisRequest" << std::endl;
         std::string header;
         header += "HTTP/1.1 200 OK\r\n";
         if (headers.find("Connection") != headers.end() &&
-            (headers["Connection"] == "Keep-Alive" || headers["Connection"] == "Keep-alive")) {
+            (headers["Connection"] == "Keep-Alive" || headers["Connection"] == "keep-alive")) {
             keepAlive = true;
             header += std::string("Connection: Keep-Alive\r\n");
             header += "Keep-Alive: timeout=" + std::to_string(DEFAULT_KEEP_ALIVE_TIME) + "\r\n";
@@ -456,7 +455,7 @@ AnalysisState HttpData::analysisRequest() {
             return ANALYSIS_ERR;
         }
         header += "Content-type: " + filetype + "\r\n";
-        header += "Content-lenght: " + std::to_string(sbuf.st_size) + "\r\n";
+        header += "Content-length: " + std::to_string(sbuf.st_size) + "\r\n";
         header += "Server: WebServer\r\n";
         header += "\r\n";
 
