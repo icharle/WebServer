@@ -1,15 +1,16 @@
 #include "EventLoop.h"
 #include "WebServer.h"
-#include "Util.h"
+#include "Config.h"
+
+Config *config(Config::getInstance());
 
 int main(int argc, char *argv[]) {
     int port;
     int threadNum;
     int backlog;
-    char configBuf[4096] = {0};
     // 读取配置文件
-    readConfig(configBuf);
-    getServerConfig(configBuf, port, threadNum, backlog);
+    Config::getInstance()->load("./conf/conf.json");
+    Config::getInstance()->getServerConfig(port, threadNum, backlog);
 
     EventLoop loop;
     WebServer webServer(&loop, threadNum, port, backlog);

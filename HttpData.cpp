@@ -14,7 +14,9 @@
 #include "Util.h"
 #include <iostream>
 #include <stdio.h>
+#include "Config.h"
 
+extern Config *config;
 const __uint32_t DEFALT_EVENT = EPOLLIN | EPOLLET | EPOLLONESHOT;
 const int DEFAULT_EXPIRED_TIME = 2000; // ms
 const int DEFAULT_KEEP_ALIVE_TIME = 5 * 60 * 1000; // ms 5min
@@ -237,12 +239,14 @@ void HttpData::handleRead() {
                 httpProcessState = ANALYSIS;
             }
             // 处理root目录
-            char configBuf[4096];
-            readConfig(configBuf);
+//            char configBuf[4096];
+//            readConfig(configBuf);
             if (headers.find("Host") != headers.end()) {
-                root = getHostRoot(configBuf, headers["Host"].c_str());
+//                root = getHostRoot(configBuf, headers["Host"].c_str());
+                root = config->getHostRoot(headers["Host"].c_str());
             } else {
-                root = getHostRoot(configBuf, "default");
+//                root = getHostRoot(configBuf, "default");
+                root = config->getHostRoot("default");
             }
             fileName = root + fileName;
         }

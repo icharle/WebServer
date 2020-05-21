@@ -7,7 +7,6 @@
 #include <sys/socket.h>
 #include <errno.h>
 #include <stdio.h>
-#include "base/cJSON.h"
 
 #define MAX_BUFF 4096
 
@@ -140,46 +139,4 @@ size_t writen(int fd, std::string &sbuff) {
 
 void shutDownWR(int fd) {
     shutdown(fd, SHUT_WR);
-}
-
-void readConfig(char *buf) {
-    FILE *fp = fopen("./conf/conf.json", "r");
-    if (fp == NULL) {
-        //todo 日志
-        abort();
-    }
-    int i = 0;
-    char ch;
-    while ((ch = fgetc(fp)) != EOF) {
-        buf[i++] = ch;
-    }
-    fclose(fp);
-}
-
-void getServerConfig(char *buf, int &port, int &threadNum, int &backlog) {
-    cJSON *root = NULL;
-    cJSON *server = NULL;
-    root = cJSON_Parse(buf);
-    server = cJSON_GetObjectItem(root, "server");
-    port = cJSON_GetObjectItem(server, "PORT")->valueint;
-    threadNum = cJSON_GetObjectItem(server, "ThreadNum")->valueint;
-    backlog = cJSON_GetObjectItem(server, "BackLog")->valueint;
-}
-
-std::string getHostRoot(char *buf, const char *host) {
-    cJSON *root = NULL;
-    cJSON *hosts = NULL;
-    cJSON *item = NULL;
-    root = cJSON_Parse(buf);
-
-    hosts = cJSON_GetObjectItem(root, "host");
-    item = cJSON_GetArrayItem(hosts, 0);
-    if (cJSON_HasObjectItem(item, host) == 1) {
-        item = cJSON_GetObjectItem(item, host);
-    } else {
-        // 返回默认站点
-        item = cJSON_GetObjectItem(item, "default");
-    }
-    item = cJSON_GetObjectItem(item, "root");
-    return item->valuestring;
 }
