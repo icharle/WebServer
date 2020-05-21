@@ -21,4 +21,10 @@ size_t writen(int fd, std::string &sbuff);
 
 void shutDownWR(int fd);
 
+void readConfig(char *buf);
+
+void getServerConfig(char *buf, int &port, int &threadNum, int &backlog);
+
+std::string getHostRoot(char *buf, const char *host);
+
 #endif //WEBNGINX_UTIL_H

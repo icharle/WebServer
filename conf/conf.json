@@ -1,0 +1,26 @@
+{
+  "server": {
+    "PORT": 80,
+    "ThreadNum": 4,
+    "BackLog": 1024
+  },
+  "host": [
+    {
+      "default": {
+        "root": "/root/webNginx/www/",
+        "access_log": "/www/log/default.log",
+        "warn_log": "/www/log/default.warn.log"
+      },
+      "1.icharle.com": {
+        "root": "/root/webNginx/www/1.icharle.com/",
+        "access_log": "/www/log/1.icharle.com.log",
+        "warn_log": "/www/log/1.icharle.com.warn.log"
+      },
+      "2.icharle.com": {
+        "root": "/www/2.icharle.com/",
+        "access_log": "/www/log/2.icharle.com.log",
+        "warn_log": "/www/log/2.icharle.com.warn.log"
+      }
+    }
+  ]
+}

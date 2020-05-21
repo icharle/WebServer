@@ -236,6 +236,15 @@ void HttpData::handleRead() {
             } else {
                 httpProcessState = ANALYSIS;
             }
+            // 处理root目录
+            char configBuf[4096];
+            readConfig(configBuf);
+            if (headers.find("Host") != headers.end()) {
+                root = getHostRoot(configBuf, headers["Host"].c_str());
+            } else {
+                root = getHostRoot(configBuf, "default");
+            }
+            fileName = root + fileName;
         }
 
         if (httpProcessState == RECV_BODY) {
