@@ -7,6 +7,9 @@
 #include <sys/socket.h>
 #include <errno.h>
 #include <stdio.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <string.h>
 
 #define MAX_BUFF 4096
 
@@ -139,4 +142,21 @@ size_t writen(int fd, std::string &sbuff) {
 
 void shutDownWR(int fd) {
     shutdown(fd, SHUT_WR);
+}
+
+int proxySocket(int port) {
+    struct sockaddr_in proxyaddr;
+
+    int proxyFd = socket(AF_INET, SOCK_STREAM, 0);
+
+    memset(&proxyaddr, 0, sizeof(proxyaddr));
+    proxyaddr.sin_family = AF_INET;
+    proxyaddr.sin_port = htons(port);
+    inet_aton("127.0.0.1", &proxyaddr.sin_addr);
+
+    if (connect(proxyFd, (struct sockaddr *) &proxyaddr, sizeof(proxyaddr)) == -1) {
+        perror("proxy socket");
+        abort();
+    }
+    return proxyFd;
 }

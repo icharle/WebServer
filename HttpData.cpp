@@ -15,6 +15,7 @@
 #include <iostream>
 #include <stdio.h>
 #include "Config.h"
+#include <sys/socket.h>
 
 extern Config *config;
 const __uint32_t DEFALT_EVENT = EPOLLIN | EPOLLET | EPOLLONESHOT;
@@ -439,58 +440,81 @@ AnalysisState HttpData::analysisRequest() {
     if (method == METHOD_POST) {
 
     } else if (method == METHOD_GET) {
-        std::string header;
-        header += "HTTP/1.1 200 OK\r\n";
-        if (headers.find("Connection") != headers.end() &&
-            (headers["Connection"] == "Keep-Alive" || headers["Connection"] == "keep-alive")) {
-            keepAlive = true;
-            header += std::string("Connection: Keep-Alive\r\n");
-            header += "Keep-Alive: timeout=" + std::to_string(DEFAULT_KEEP_ALIVE_TIME) + "\r\n";
+//        std::string header;
+//        header += "HTTP/1.1 200 OK\r\n";
+//        if (headers.find("Connection") != headers.end() &&
+//            (headers["Connection"] == "Keep-Alive" || headers["Connection"] == "keep-alive")) {
+//            keepAlive = true;
+//            header += std::string("Connection: Keep-Alive\r\n");
+//            header += "Keep-Alive: timeout=" + std::to_string(DEFAULT_KEEP_ALIVE_TIME) + "\r\n";
+//        }
+//        size_t dot_pos = fileName.find_last_of(".");
+//        std::string filetype;
+//        if (dot_pos == std::string::npos) {
+//            filetype = "text/html";
+//        } else {
+//            std::string suffix = fileName.substr(dot_pos);
+//            auto it = MimeType.find(suffix);
+//            if (it == MimeType.cend()) {
+//                filetype = "text/html";
+//            } else {
+//                filetype = it->second;
+//            }
+//        }
+//
+//        struct stat sbuf;
+//        if (stat(fileName.c_str(), &sbuf) < 0) {
+//            header.clear();
+//            handleError(fd, 404, "NOT FOUND!");
+//            return ANALYSIS_ERR;
+//        }
+//        header += "Content-type: " + filetype + "\r\n";
+//        header += "Content-length: " + std::to_string(sbuf.st_size) + "\r\n";
+//        header += "Server: WebServer\r\n";
+//        header += "\r\n";
+//
+//        outBuffer += header;
+//
+//        int src_fd = open(fileName.c_str(), O_RDONLY, 0);
+//        if (src_fd < 0) {
+//            outBuffer.clear();
+//            handleError(fd, 404, "NOT FOUND!");
+//            return ANALYSIS_ERR;
+//        }
+//        void *mmapRet = mmap(nullptr, sbuf.st_size, PROT_READ, MAP_PRIVATE, src_fd, 0);
+//        close(src_fd);
+//        if (mmapRet == (void *) (-1)) {
+//            munmap(mmapRet, sbuf.st_size);
+//            outBuffer.clear();
+//            handleError(fd, 404, "NOT FOUND!");
+//            return ANALYSIS_ERR;
+//        }
+//        char *src_addr = static_cast<char *>(mmapRet);
+//        outBuffer += std::string(src_addr, src_addr + sbuf.st_size);
+//        munmap(mmapRet, sbuf.st_size);
+        int proxyFd = proxySocket(80);
+        std::string header_buff;
+        header_buff += "GET / HTTP/1.1\r\n";
+        header_buff += "Host: 1.icharle.com\r\n";
+        header_buff += "User-Agent: Mozilla\r\n";
+        header_buff += "\r\n";
+        std::cout << "before write" << std::endl;
+        int wRet = send(proxyFd, header_buff.c_str(), 2048, 0);
+        if (wRet < 0) {
+            perror("writen proxy");
+            abort();
         }
-        size_t dot_pos = fileName.find_last_of(".");
-        std::string filetype;
-        if (dot_pos == std::string::npos) {
-            filetype = "text/html";
-        } else {
-            std::string suffix = fileName.substr(dot_pos);
-            auto it = MimeType.find(suffix);
-            if (it == MimeType.cend()) {
-                filetype = "text/html";
-            } else {
-                filetype = it->second;
-            }
+        std::cout << "before read" << std::endl;
+        char m_recv_buff[2048];
+        memset(m_recv_buff, 0, 2048);
+        int read_num = recv(proxyFd, m_recv_buff, 2048, 0);
+        if (read_num < 0) {
+            perror("readn proxy");
+            abort();
         }
-
-        struct stat sbuf;
-        if (stat(fileName.c_str(), &sbuf) < 0) {
-            header.clear();
-            handleError(fd, 404, "NOT FOUND!");
-            return ANALYSIS_ERR;
-        }
-        header += "Content-type: " + filetype + "\r\n";
-        header += "Content-length: " + std::to_string(sbuf.st_size) + "\r\n";
-        header += "Server: WebServer\r\n";
-        header += "\r\n";
-
-        outBuffer += header;
-
-        int src_fd = open(fileName.c_str(), O_RDONLY, 0);
-        if (src_fd < 0) {
-            outBuffer.clear();
-            handleError(fd, 404, "NOT FOUND!");
-            return ANALYSIS_ERR;
-        }
-        void *mmapRet = mmap(nullptr, sbuf.st_size, PROT_READ, MAP_PRIVATE, src_fd, 0);
-        close(src_fd);
-        if (mmapRet == (void *) (-1)) {
-            munmap(mmapRet, sbuf.st_size);
-            outBuffer.clear();
-            handleError(fd, 404, "NOT FOUND!");
-            return ANALYSIS_ERR;
-        }
-        char *src_addr = static_cast<char *>(mmapRet);
-        outBuffer += std::string(src_addr, src_addr + sbuf.st_size);
-        munmap(mmapRet, sbuf.st_size);
+        std::cout << "after read" << std::endl;
+        std::cout << m_recv_buff << std::endl;
+        outBuffer = m_recv_buff;
         return ANALYSIS_SUCC;
     }
     return ANALYSIS_ERR;
