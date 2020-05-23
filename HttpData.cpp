@@ -495,26 +495,12 @@ AnalysisState HttpData::analysisRequest() {
         int proxyFd = proxySocket(80);
         std::string header_buff;
         header_buff += "GET / HTTP/1.1\r\n";
-        header_buff += "Host: 1.icharle.com\r\n";
+        header_buff += "Host: soarteam.cn\r\n";
         header_buff += "User-Agent: Mozilla\r\n";
         header_buff += "\r\n";
-        std::cout << "before write" << std::endl;
-        int wRet = send(proxyFd, header_buff.c_str(), 2048, 0);
-        if (wRet < 0) {
-            perror("writen proxy");
-            abort();
-        }
-        std::cout << "before read" << std::endl;
-        char m_recv_buff[2048];
-        memset(m_recv_buff, 0, 2048);
-        int read_num = recv(proxyFd, m_recv_buff, 2048, 0);
-        if (read_num < 0) {
-            perror("readn proxy");
-            abort();
-        }
-        std::cout << "after read" << std::endl;
-        std::cout << m_recv_buff << std::endl;
-        outBuffer = m_recv_buff;
+        sendn(proxyFd, header_buff);
+        recvn(proxyFd, outBuffer);
+//        std::cout << outBuffer << std::endl;
         return ANALYSIS_SUCC;
     }
     return ANALYSIS_ERR;

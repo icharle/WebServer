@@ -152,11 +152,58 @@ int proxySocket(int port) {
     memset(&proxyaddr, 0, sizeof(proxyaddr));
     proxyaddr.sin_family = AF_INET;
     proxyaddr.sin_port = htons(port);
-    inet_aton("127.0.0.1", &proxyaddr.sin_addr);
+    inet_aton("119.28.21.20", &proxyaddr.sin_addr);
 
     if (connect(proxyFd, (struct sockaddr *) &proxyaddr, sizeof(proxyaddr)) == -1) {
         perror("proxy socket");
         abort();
     }
     return proxyFd;
+}
+
+size_t sendn(int fd, std::string &inBuffer) {
+    ssize_t nleft = inBuffer.size();
+    ssize_t nwritten = 0;
+    ssize_t writeSum = 0;
+    const char *ptr = inBuffer.c_str();
+    while (nleft > 0) {
+        if ((nwritten = send(fd, ptr, MAX_BUFF, 0)) <= 0) {
+            if (nwritten < 0) {
+                if (errno == EINTR) {
+                    nwritten = 0;
+                } else if (errno == EAGAIN) {
+                    break;
+                } else {
+                    return -1;
+                }
+            }
+        }
+        writeSum += nwritten;
+        nleft -= nwritten;
+        ptr += nwritten;
+    }
+    return writeSum;
+}
+
+size_t recvn(int fd, std::string &outBuffer) {
+    ssize_t nread = 0;
+    ssize_t readSum = 0;
+    while (true) {
+        char buff[MAX_BUFF];
+        if ((nread = recv(fd, buff, MAX_BUFF, 0)) < 0) {
+            if (errno == EINTR) {
+                continue;
+            } else if (errno == EAGAIN) {
+                return readSum;
+            } else {
+                perror("read error");
+                return -1;
+            }
+        } else if (nread == 0) {
+            break;
+        }
+        readSum += nread;
+        outBuffer += std::string(buff, buff + nread);
+    }
+    return readSum;
 }

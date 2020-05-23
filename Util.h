@@ -23,4 +23,8 @@ void shutDownWR(int fd);
 
 int proxySocket(int port);
 
+size_t sendn(int fd, std::string &inBuffer);
+
+size_t recvn(int fd, std::string &outBuffer);
+
 #endif //WEBNGINX_UTIL_H
