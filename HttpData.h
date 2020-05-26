@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <vector>
 #include <map>
+#include "FastCgi.h"
 
 class Channel;
 
@@ -102,6 +103,7 @@ public:
 
 private:
     EventLoop *loop;
+    FastCgi *fastCgi;
     int fd;
     std::shared_ptr<Channel> channel;
     HttpMethod method;

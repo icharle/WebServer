@@ -21,7 +21,7 @@ size_t writen(int fd, std::string &sbuff);
 
 void shutDownWR(int fd);
 
-int proxySocket(int port);
+int proxySocket(std::string addr, int port);
 
 size_t sendn(int fd, std::string &inBuffer);
 

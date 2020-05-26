@@ -46,6 +46,7 @@ const std::unordered_map<std::string, std::string> HttpData::MimeType = {
 
 HttpData::HttpData(EventLoop *loop, int connfd) :
         loop(loop),
+        fastCgi(new FastCgi()),
         fd(connfd),
         channel(new Channel(loop, connfd)),
         method(METHOD_GET),
@@ -254,8 +255,8 @@ void HttpData::handleRead() {
 
         if (httpProcessState == RECV_BODY) {
             int content_length = -1;
-            if (headers.find("Content-length") != headers.end()) {
-                content_length = stoi(headers["Content-length"]);
+            if (headers.find("Content-Length") != headers.end()) {
+                content_length = stoi(headers["Content-Length"]);
             } else {
                 error = true;
                 handleError(fd, 400, "Bad Request: lost of Content-length");
@@ -438,16 +439,57 @@ URIState HttpData::parseURI() {
 
 AnalysisState HttpData::analysisRequest() {
     if (method == METHOD_POST) {
+        std::string header, body;
+        std::cout << "sendEndRequestRecord---1" << std::endl;
+        fastCgi->setRequestId(1);
+        fastCgi->connectFpm();
+        fastCgi->sendStartRequestRecord();
+        fastCgi->sendParams(const_cast<char *>("SCRIPT_FILENAME"), const_cast<char *>("/home/www/Operation.php"));
+        fastCgi->sendParams(const_cast<char *>("REQUEST_METHOD"), const_cast<char *>("POST"));
+        fastCgi->sendParams(const_cast<char *>("CONTENT_LENGTH"), const_cast<char *>("17"));
 
+        std::cout << "sendEndRequestRecord" << std::endl;
+        fastCgi->sendParams(const_cast<char *>("CONTENT_TYPE"),
+                            const_cast<char *>("application/x-www-form-urlencoded"));
+        fastCgi->sendEndRequestRecord();
+        fastCgi->sendPostStdinRecord(const_cast<char *>("a=20&b=10&c=5&d=6"), 17);
+        fastCgi->sendEndPostStdinRecord();
+        body = fastCgi->recvRecord();
+        std::cout << body << std::endl;
+        header += "HTTP/1.1 200 OK\r\n";
+        if (headers.find("Connection") != headers.end() &&
+            (headers["Connection"] == "Keep-Alive" || headers["Connection"] == "keep-alive")) {
+            keepAlive = true;
+            header += std::string("Connection: Keep-Alive\r\n");
+            header += "Keep-Alive: timeout=" + std::to_string(DEFAULT_KEEP_ALIVE_TIME) + "\r\n";
+        }
+        header += "Content-type: text/html\r\n";
+        header += "Content-length: " + std::to_string(body.size()) + "\r\n";
+        header += "Server: WebServer\r\n";
+        header += "\r\n";
+        outBuffer += header;
+        outBuffer += body;
+        return ANALYSIS_SUCC;
     } else if (method == METHOD_GET) {
-//        std::string header;
-//        header += "HTTP/1.1 200 OK\r\n";
-//        if (headers.find("Connection") != headers.end() &&
-//            (headers["Connection"] == "Keep-Alive" || headers["Connection"] == "keep-alive")) {
-//            keepAlive = true;
-//            header += std::string("Connection: Keep-Alive\r\n");
-//            header += "Keep-Alive: timeout=" + std::to_string(DEFAULT_KEEP_ALIVE_TIME) + "\r\n";
-//        }
+        std::string header, body;
+        fastCgi->setRequestId(1);
+        fastCgi->connectFpm();
+        fastCgi->sendStartRequestRecord();
+//         params
+        fastCgi->sendParams(const_cast<char *>("SCRIPT_FILENAME"), const_cast<char *>("/home/www/index.php"));
+        fastCgi->sendParams(const_cast<char *>("REQUEST_METHOD"), const_cast<char *>("GET"));
+        fastCgi->sendParams(const_cast<char *>("CONTENT_LENGTH"), const_cast<char *>("0"));
+        fastCgi->sendParams(const_cast<char *>("CONTENT_TYPE"),
+                            const_cast<char *>("text/html"));
+        fastCgi->sendEndRequestRecord();
+        body = fastCgi->recvRecord();
+        header += "HTTP/1.1 200 OK\r\n";
+        if (headers.find("Connection") != headers.end() &&
+            (headers["Connection"] == "Keep-Alive" || headers["Connection"] == "keep-alive")) {
+            keepAlive = true;
+            header += std::string("Connection: Keep-Alive\r\n");
+            header += "Keep-Alive: timeout=" + std::to_string(DEFAULT_KEEP_ALIVE_TIME) + "\r\n";
+        }
 //        size_t dot_pos = fileName.find_last_of(".");
 //        std::string filetype;
 //        if (dot_pos == std::string::npos) {
@@ -468,12 +510,12 @@ AnalysisState HttpData::analysisRequest() {
 //            handleError(fd, 404, "NOT FOUND!");
 //            return ANALYSIS_ERR;
 //        }
-//        header += "Content-type: " + filetype + "\r\n";
-//        header += "Content-length: " + std::to_string(sbuf.st_size) + "\r\n";
-//        header += "Server: WebServer\r\n";
-//        header += "\r\n";
-//
-//        outBuffer += header;
+        header += "Content-type: text/html\r\n";
+        header += "Content-length: " + std::to_string(body.size()) + "\r\n";
+        header += "Server: WebServer\r\n";
+        header += "\r\n";
+        outBuffer += header;
+        outBuffer += body;
 //
 //        int src_fd = open(fileName.c_str(), O_RDONLY, 0);
 //        if (src_fd < 0) {
@@ -492,14 +534,16 @@ AnalysisState HttpData::analysisRequest() {
 //        char *src_addr = static_cast<char *>(mmapRet);
 //        outBuffer += std::string(src_addr, src_addr + sbuf.st_size);
 //        munmap(mmapRet, sbuf.st_size);
-        int proxyFd = proxySocket(80);
-        std::string header_buff;
-        header_buff += "GET / HTTP/1.1\r\n";
-        header_buff += "Host: soarteam.cn\r\n";
-        header_buff += "User-Agent: Mozilla\r\n";
-        header_buff += "\r\n";
-        sendn(proxyFd, header_buff);
-        recvn(proxyFd, outBuffer);
+
+// 反向代理
+//        int proxyFd = proxySocket("127.0.0.1", 80);
+//        std::string header_buff;
+//        header_buff += "GET / HTTP/1.1\r\n";
+//        header_buff += "Host: soarteam.cn\r\n";
+//        header_buff += "User-Agent: Mozilla\r\n";
+//        header_buff += "\r\n";
+//        sendn(proxyFd, header_buff);
+//        recvn(proxyFd, outBuffer);
 //        std::cout << outBuffer << std::endl;
         return ANALYSIS_SUCC;
     }

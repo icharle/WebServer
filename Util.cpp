@@ -144,7 +144,7 @@ void shutDownWR(int fd) {
     shutdown(fd, SHUT_WR);
 }
 
-int proxySocket(int port) {
+int proxySocket(std::string addr, int port) {
     struct sockaddr_in proxyaddr;
 
     int proxyFd = socket(AF_INET, SOCK_STREAM, 0);
@@ -152,7 +152,7 @@ int proxySocket(int port) {
     memset(&proxyaddr, 0, sizeof(proxyaddr));
     proxyaddr.sin_family = AF_INET;
     proxyaddr.sin_port = htons(port);
-    inet_aton("119.28.21.20", &proxyaddr.sin_addr);
+    inet_aton(addr.c_str(), &proxyaddr.sin_addr);
 
     if (connect(proxyFd, (struct sockaddr *) &proxyaddr, sizeof(proxyaddr)) == -1) {
         perror("proxy socket");
