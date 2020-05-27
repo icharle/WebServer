@@ -56,6 +56,7 @@ HttpData::HttpData(EventLoop *loop, int connfd) :
         parseState(H_START),
         nowReadPos(0),
         keepAlive(false),
+        isPHP(false),
         error(false) {
     channel->setReadHandler(std::bind(&HttpData::handleRead, this));
     channel->setWriteHandler(std::bind(&HttpData::handleWrite, this));
@@ -181,7 +182,12 @@ HeaderState HttpData::parseHeaders() {
         }
     }
     if (parseState == H_END_LF) {
-        str = str.substr(i);
+        // 解决x-www-form-urlencoded方式中截取错误问题
+        if (method == METHOD_POST) {
+            str = str.substr(now_read_line_begin);
+        } else {
+            str = str.substr(i);
+        }
         return PARSE_HEADER_SUCC;
     }
     str = str.substr(now_read_line_begin);
@@ -258,9 +264,9 @@ void HttpData::handleRead() {
                 handleError(fd, 400, "Bad Request: lost of Content-length");
                 break;
             }
-//            if (static_cast<int >(inBuffer.size()) < content_length) {
-//                break;
-//            }
+            if (static_cast<int >(inBuffer.size()) < content_length) {
+                break;
+            }
             httpProcessState = ANALYSIS;
         }
 
@@ -455,12 +461,13 @@ AnalysisState HttpData::analysisRequest() {
         fastCgi->sendStartRequestRecord();
         fastCgi->sendParams(const_cast<char *>("SCRIPT_FILENAME"), const_cast<char *>(fileName.c_str()));
         fastCgi->sendParams(const_cast<char *>("REQUEST_METHOD"), const_cast<char *>("POST"));
-        fastCgi->sendParams(const_cast<char *>("CONTENT_LENGTH"), const_cast<char *>("17"));
+        fastCgi->sendParams(const_cast<char *>("CONTENT_LENGTH"),
+                            const_cast<char *>(headers["Content-Length"].c_str()));
 
         fastCgi->sendParams(const_cast<char *>("CONTENT_TYPE"),
-                            const_cast<char *>("application/x-www-form-urlencoded"));
+                            const_cast<char *>(headers["Content-Type"].c_str()));
         fastCgi->sendEndRequestRecord();
-        fastCgi->sendPostStdinRecord(const_cast<char *>("a=20&b=10&c=5&d=6"), 17);
+        fastCgi->sendPostStdinRecord(const_cast<char *>(inBuffer.c_str()), stoi(headers["Content-Length"]));
         fastCgi->sendEndPostStdinRecord();
         body = fastCgi->recvRecord();
         header += "HTTP/1.1 200 OK\r\n";
