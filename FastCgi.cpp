@@ -66,7 +66,6 @@ int FastCgi::sendStartRequestRecord() {
     if (ret == sizeof(beginRequestRecord)) {
         return 0;
     } else {
-        std::cout << "sendStartRequestRecord" << std::endl;
         abort();
         return -1;
     }
@@ -183,8 +182,6 @@ int FastCgi::sendParams(char *name, char *value) {
     /* 生成 PARAMS 参数内容的 body */
     makeNameValueBody(name, strlen(name), value, strlen(value), bodyBuff, &bodyLen);
 
-    std::cout << bodyLen << std::endl;
-
     FASTCGI_Header nameValueHeader;
     nameValueHeader = makeHeader(FASTCGI_PARAMS, requestId, bodyLen, 0);
     /*8 字节的消息头*/
@@ -250,15 +247,12 @@ int FastCgi::sendEndRequestRecord() {
     if (ret == sizeof(endHeader)) {
         return 0;
     } else {
-        std::cout << "sendEndRequestRecord" << std::endl;
         abort();
         return -1;
     }
 }
 
 char *FastCgi::recvRecord() {
-    std::cout << "执行recvRecord:" << std::endl;
-    std::cout << "执行recvRecord:" << socketFd << std::endl;
     FASTCGI_Header respHeader{};
 
     int contentLen;
@@ -268,7 +262,6 @@ char *FastCgi::recvRecord() {
     while (read(socketFd, &respHeader, FASTCGI_HEADER_LENGTH) > 0) {
         if (respHeader.type == FASTCGI_STDOUT) {
             contentLen = (respHeader.contentLengthB1 << 8) + (respHeader.contentLengthB0);
-            std::cout << "readn:" << contentLen << std::endl;
             memset(content, 0, 2048);
 
             read(socketFd, content, contentLen);
@@ -278,7 +271,6 @@ char *FastCgi::recvRecord() {
             }
         } else if (respHeader.type == FASTCGI_STDERR) {
             contentLen = (respHeader.contentLengthB1 << 8) + (respHeader.contentLengthB0);
-            std::cout << "readn-err:" << contentLen << std::endl;
             memset(content, 0, contentLen);
 
             read(socketFd, content, contentLen);
@@ -288,7 +280,6 @@ char *FastCgi::recvRecord() {
             }
         } else if (respHeader.type == FASTCGI_END_REQUEST) {
             FastCgiEndRequestBody endRequestBody{};
-            std::cout << "readn-endRequestBody:" << std::endl;
             read(socketFd, &endRequestBody, sizeof(endRequestBody));
         }
     }

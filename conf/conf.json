@@ -7,17 +7,17 @@
   "host": [
     {
       "default": {
-        "root": "/root/webNginx/www/",
+        "root": "/home/www/default/",
         "access_log": "/www/log/default.log",
         "warn_log": "/www/log/default.warn.log"
       },
       "1.icharle.com": {
-        "root": "/root/webNginx/www/1.icharle.com/",
+        "root": "/home/www/1.icharle.com/",
         "access_log": "/www/log/1.icharle.com.log",
         "warn_log": "/www/log/1.icharle.com.warn.log"
       },
       "2.icharle.com": {
-        "root": "/www/2.icharle.com/",
+        "root": "/home/www/2.icharle.com/",
         "access_log": "/www/log/2.icharle.com.log",
         "warn_log": "/www/log/2.icharle.com.warn.log"
       }

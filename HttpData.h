@@ -116,7 +116,8 @@ private:
     std::string inBuffer;
     std::string outBuffer;
     std::string fileName;
-    std::string filePath;
+    std::string query;
+    bool isPHP;
     bool error;
     std::string root;
     const static std::unordered_map<std::string, std::string> MimeType;

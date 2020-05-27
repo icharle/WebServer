@@ -241,13 +241,9 @@ void HttpData::handleRead() {
                 httpProcessState = ANALYSIS;
             }
             // 处理root目录
-//            char configBuf[4096];
-//            readConfig(configBuf);
             if (headers.find("Host") != headers.end()) {
-//                root = getHostRoot(configBuf, headers["Host"].c_str());
                 root = config->getHostRoot(headers["Host"].c_str());
             } else {
-//                root = getHostRoot(configBuf, "default");
                 root = config->getHostRoot("default");
             }
             fileName = root + fileName;
@@ -262,9 +258,9 @@ void HttpData::handleRead() {
                 handleError(fd, 400, "Bad Request: lost of Content-length");
                 break;
             }
-            if (static_cast<int >(inBuffer.size()) < content_length) {
-                break;
-            }
+//            if (static_cast<int >(inBuffer.size()) < content_length) {
+//                break;
+//            }
             httpProcessState = ANALYSIS;
         }
 
@@ -407,7 +403,8 @@ URIState HttpData::parseURI() {
             if (pos_ - pos > 1) {
                 fileName = request_line.substr(pos + 1, pos_ - pos - 1);
                 size_t pos__ = fileName.find("?");
-                if (pos__ >= 0) {
+                if (pos__ != std::string::npos) {
+                    query = fileName.substr(pos__ + 1, pos_);
                     fileName = fileName.substr(0, pos__);
                 }
             } else {
@@ -415,6 +412,11 @@ URIState HttpData::parseURI() {
             }
         }
         pos = pos_;
+    }
+    // 是否需要php-fpm处理
+    auto idx = fileName.find_last_of(".");
+    if (idx != std::string::npos) {
+        isPHP = fileName.substr(idx) == ".php";
     }
 
     pos = request_line.find("/", pos);
@@ -438,24 +440,29 @@ URIState HttpData::parseURI() {
 }
 
 AnalysisState HttpData::analysisRequest() {
+    // 判断文件是否存在
+    struct stat sbuf;
+    if (stat(fileName.c_str(), &sbuf) < 0) {
+        handleError(fd, 404, "NOT FOUND!");
+        return ANALYSIS_ERR;
+    }
+    std::string header, body, filetype;
+    // 反向代理 or 负载均衡
+    // php-fpm动态处理 or 静态资源文件
     if (method == METHOD_POST) {
-        std::string header, body;
-        std::cout << "sendEndRequestRecord---1" << std::endl;
         fastCgi->setRequestId(1);
         fastCgi->connectFpm();
         fastCgi->sendStartRequestRecord();
-        fastCgi->sendParams(const_cast<char *>("SCRIPT_FILENAME"), const_cast<char *>("/home/www/Operation.php"));
+        fastCgi->sendParams(const_cast<char *>("SCRIPT_FILENAME"), const_cast<char *>(fileName.c_str()));
         fastCgi->sendParams(const_cast<char *>("REQUEST_METHOD"), const_cast<char *>("POST"));
         fastCgi->sendParams(const_cast<char *>("CONTENT_LENGTH"), const_cast<char *>("17"));
 
-        std::cout << "sendEndRequestRecord" << std::endl;
         fastCgi->sendParams(const_cast<char *>("CONTENT_TYPE"),
                             const_cast<char *>("application/x-www-form-urlencoded"));
         fastCgi->sendEndRequestRecord();
         fastCgi->sendPostStdinRecord(const_cast<char *>("a=20&b=10&c=5&d=6"), 17);
         fastCgi->sendEndPostStdinRecord();
         body = fastCgi->recvRecord();
-        std::cout << body << std::endl;
         header += "HTTP/1.1 200 OK\r\n";
         if (headers.find("Connection") != headers.end() &&
             (headers["Connection"] == "Keep-Alive" || headers["Connection"] == "keep-alive")) {
@@ -471,18 +478,54 @@ AnalysisState HttpData::analysisRequest() {
         outBuffer += body;
         return ANALYSIS_SUCC;
     } else if (method == METHOD_GET) {
-        std::string header, body;
-        fastCgi->setRequestId(1);
-        fastCgi->connectFpm();
-        fastCgi->sendStartRequestRecord();
+        if (isPHP) {
+            fastCgi->setRequestId(1);
+            fastCgi->connectFpm();
+            fastCgi->sendStartRequestRecord();
 //         params
-        fastCgi->sendParams(const_cast<char *>("SCRIPT_FILENAME"), const_cast<char *>("/home/www/index.php"));
-        fastCgi->sendParams(const_cast<char *>("REQUEST_METHOD"), const_cast<char *>("GET"));
-        fastCgi->sendParams(const_cast<char *>("CONTENT_LENGTH"), const_cast<char *>("0"));
-        fastCgi->sendParams(const_cast<char *>("CONTENT_TYPE"),
-                            const_cast<char *>("text/html"));
-        fastCgi->sendEndRequestRecord();
-        body = fastCgi->recvRecord();
+            fastCgi->sendParams(const_cast<char *>("SCRIPT_FILENAME"), const_cast<char *>(fileName.c_str()));
+            fastCgi->sendParams(const_cast<char *>("REQUEST_METHOD"), const_cast<char *>("GET"));
+            fastCgi->sendParams(const_cast<char *>("CONTENT_LENGTH"), const_cast<char *>("0"));
+            fastCgi->sendParams(const_cast<char *>("CONTENT_TYPE"),
+                                const_cast<char *>("text/html"));
+            if (!query.empty()) {
+                fastCgi->sendParams(const_cast<char *>("QUERY_STRING"), const_cast<char *>(query.c_str()));
+            }
+            fastCgi->sendEndRequestRecord();
+            body = fastCgi->recvRecord();
+        } else {
+            size_t dot_pos = fileName.find_last_of(".");
+            if (dot_pos == std::string::npos) {
+                filetype = "text/html";
+            } else {
+                std::string suffix = fileName.substr(dot_pos);
+                auto it = MimeType.find(suffix);
+                if (it == MimeType.cend()) {
+                    filetype = "text/html";
+                } else {
+                    filetype = it->second;
+                }
+            }
+
+            int src_fd = open(fileName.c_str(), O_RDONLY, 0);
+            if (src_fd < 0) {
+                outBuffer.clear();
+                handleError(fd, 404, "NOT FOUND!");
+                return ANALYSIS_ERR;
+            }
+            void *mmapRet = mmap(nullptr, sbuf.st_size, PROT_READ, MAP_PRIVATE, src_fd, 0);
+            close(src_fd);
+            if (mmapRet == (void *) (-1)) {
+                munmap(mmapRet, sbuf.st_size);
+                outBuffer.clear();
+                handleError(fd, 404, "NOT FOUND!");
+                return ANALYSIS_ERR;
+            }
+            char *src_addr = static_cast<char *>(mmapRet);
+            body += std::string(src_addr, src_addr + sbuf.st_size);
+            munmap(mmapRet, sbuf.st_size);
+        }
+
         header += "HTTP/1.1 200 OK\r\n";
         if (headers.find("Connection") != headers.end() &&
             (headers["Connection"] == "Keep-Alive" || headers["Connection"] == "keep-alive")) {
@@ -490,50 +533,12 @@ AnalysisState HttpData::analysisRequest() {
             header += std::string("Connection: Keep-Alive\r\n");
             header += "Keep-Alive: timeout=" + std::to_string(DEFAULT_KEEP_ALIVE_TIME) + "\r\n";
         }
-//        size_t dot_pos = fileName.find_last_of(".");
-//        std::string filetype;
-//        if (dot_pos == std::string::npos) {
-//            filetype = "text/html";
-//        } else {
-//            std::string suffix = fileName.substr(dot_pos);
-//            auto it = MimeType.find(suffix);
-//            if (it == MimeType.cend()) {
-//                filetype = "text/html";
-//            } else {
-//                filetype = it->second;
-//            }
-//        }
-//
-//        struct stat sbuf;
-//        if (stat(fileName.c_str(), &sbuf) < 0) {
-//            header.clear();
-//            handleError(fd, 404, "NOT FOUND!");
-//            return ANALYSIS_ERR;
-//        }
-        header += "Content-type: text/html\r\n";
+        header += "Content-type: " + filetype + "\r\n";
         header += "Content-length: " + std::to_string(body.size()) + "\r\n";
         header += "Server: WebServer\r\n";
         header += "\r\n";
         outBuffer += header;
         outBuffer += body;
-//
-//        int src_fd = open(fileName.c_str(), O_RDONLY, 0);
-//        if (src_fd < 0) {
-//            outBuffer.clear();
-//            handleError(fd, 404, "NOT FOUND!");
-//            return ANALYSIS_ERR;
-//        }
-//        void *mmapRet = mmap(nullptr, sbuf.st_size, PROT_READ, MAP_PRIVATE, src_fd, 0);
-//        close(src_fd);
-//        if (mmapRet == (void *) (-1)) {
-//            munmap(mmapRet, sbuf.st_size);
-//            outBuffer.clear();
-//            handleError(fd, 404, "NOT FOUND!");
-//            return ANALYSIS_ERR;
-//        }
-//        char *src_addr = static_cast<char *>(mmapRet);
-//        outBuffer += std::string(src_addr, src_addr + sbuf.st_size);
-//        munmap(mmapRet, sbuf.st_size);
 
 // 反向代理
 //        int proxyFd = proxySocket("127.0.0.1", 80);
