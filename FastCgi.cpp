@@ -119,7 +119,7 @@ int FastCgi::sendParams(char *name, char *value) {
     }
     memcpy(buf + FASTCGI_HEADER_LENGTH, bodyBuff, bodylen);
     // body - end
-
+    std::cout << bodyBuff << std::endl;
     ret = write(socketFd, buf, bodylen + FASTCGI_HEADER_LENGTH);
     assert(ret == bodylen + FASTCGI_HEADER_LENGTH);
     return 1;
@@ -178,28 +178,23 @@ int FastCgi::sendEndRequestRecord() {
     }
 }
 
-char *FastCgi::recvRecord() {
+void FastCgi::recvRecord(char *data) {
     FASTCGI_Header respHeader{};
 
     int contentLen;
-    static char content[2048];
     char paddingBuf[8];
 
     while (read(socketFd, &respHeader, FASTCGI_HEADER_LENGTH) > 0) {
         if (respHeader.type == FASTCGI_STDOUT) {
             contentLen = (respHeader.contentLengthB1 << 8) + (respHeader.contentLengthB0);
-            memset(content, 0, contentLen);
-
-            read(socketFd, content, contentLen);
+            readn(socketFd, data, contentLen);
 
             if (respHeader.paddingLength > 0) {
                 read(socketFd, paddingBuf, respHeader.paddingLength);
             }
         } else if (respHeader.type == FASTCGI_STDERR) {
             contentLen = (respHeader.contentLengthB1 << 8) + (respHeader.contentLengthB0);
-            memset(content, 0, contentLen);
-
-            read(socketFd, content, contentLen);
+            read(socketFd, data, contentLen);
 
             if (respHeader.paddingLength > 0) {
                 read(socketFd, paddingBuf, respHeader.paddingLength);
@@ -209,5 +204,4 @@ char *FastCgi::recvRecord() {
             read(socketFd, &endRequestBody, sizeof(endRequestBody));
         }
     }
-    return content;
 }

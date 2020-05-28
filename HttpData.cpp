@@ -477,6 +477,7 @@ AnalysisState HttpData::analysisRequest() {
         return ANALYSIS_ERR;
     }
     std::string header, body, filetype;
+    char *data = static_cast<char *>(malloc(2048));
     // 反向代理 or 负载均衡
     // php-fpm动态处理 or 静态资源文件
     if (method == METHOD_POST) {
@@ -493,7 +494,9 @@ AnalysisState HttpData::analysisRequest() {
         fastCgi->sendEndRequestRecord();
         fastCgi->sendPostStdinRecord(const_cast<char *>(inBuffer.c_str()), stoi(headers["Content-Length"]));
         fastCgi->sendEndPostStdinRecord();
-        body = fastCgi->recvRecord();
+        fastCgi->recvRecord(data);
+        body = data;
+        delete [] data;
         header += "HTTP/1.1 200 OK\r\n";
         if (headers.find("Connection") != headers.end() &&
             (headers["Connection"] == "Keep-Alive" || headers["Connection"] == "keep-alive")) {
@@ -523,7 +526,9 @@ AnalysisState HttpData::analysisRequest() {
                 fastCgi->sendParams(const_cast<char *>("QUERY_STRING"), const_cast<char *>(query.c_str()));
             }
             fastCgi->sendEndRequestRecord();
-            body = fastCgi->recvRecord();
+            fastCgi->recvRecord(data);
+            body = data;
+            delete [] data;
             filetype = "text/html";
         } else {
             size_t dot_pos = fileName.find_last_of(".");

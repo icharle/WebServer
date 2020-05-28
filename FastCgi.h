@@ -113,7 +113,7 @@ public:
 
     int sendEndRequestRecord();
 
-    char *recvRecord();
+    void recvRecord(char *data);
 
 private:
     int socketFd;
