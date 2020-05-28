@@ -10,6 +10,9 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <regex>
+#include <netdb.h>
+#include <iostream>
 
 #define MAX_BUFF 4096
 
@@ -206,4 +209,22 @@ size_t recvn(int fd, std::string &outBuffer) {
         outBuffer += std::string(buff, buff + nread);
     }
     return readSum;
+}
+
+void regexUrl(std::string url, std::string &host, int &port, std::string &ip) {
+    std::regex exUrl("(\\w+:\\/\\/)([^/:]+)(:\\d*)?([/s/S]*)");
+    std::regex exIp("((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})(\\.((2(5[0-5]|[0-4]\\d))|[0-1]?\\d{1,2})){3}");
+    std::cmatch m;
+    if (std::regex_match(url.c_str(), m, exUrl)) {
+        host = std::string(m[2].first, m[2].second);
+        port = std::string(m[3].first, m[3].second).empty() ? 80 : std::stoi(std::string(m[3].first+1, m[3].second));
+        if (std::regex_match(host.c_str(), exIp)) {
+            // 默认为点分十进制数IP地址格式
+            ip = host;
+        } else {
+            // 转换成点分十进制数IP地址
+            struct hostent *hostent = gethostbyname(host.c_str());
+            ip = inet_ntoa(*(in_addr *) *hostent->h_addr_list);
+        }
+    }
 }

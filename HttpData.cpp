@@ -246,13 +246,14 @@ void HttpData::handleRead() {
             } else {
                 httpProcessState = ANALYSIS;
             }
-            // 处理root目录
+            // 处理root目录 反向代理URL
             if (headers.find("Host") != headers.end()) {
                 root = config->getHostRoot(headers["Host"].c_str());
+                passProxy = config->getPassProxy(headers["Host"].c_str());
             } else {
                 root = config->getHostRoot("default");
+                passProxy = config->getPassProxy("default");
             }
-            fileName = root + fileName;
         }
 
         if (httpProcessState == RECV_BODY) {
@@ -446,7 +447,30 @@ URIState HttpData::parseURI() {
 }
 
 AnalysisState HttpData::analysisRequest() {
+    if (!passProxy.empty()) {
+        // 处理反向代理 分离IP、Port、host
+        int port;
+        std::string host;
+        std::string ip;
+        regexUrl(passProxy, host, port, ip);
+        // 反向代理
+        int proxyFd = proxySocket(ip, port);
+        std::string header_buff;
+        header_buff +=
+                (method == METHOD_GET ? "GET /" : "POST /") + fileName +
+                (version == HTTP1_1 ? " HTTP/1.1" : " HTTP/1.0") +
+                "\r\n";
+        header_buff += "Host: " + host + "\r\n";
+        header_buff += "User-Agent: " + headers["User-Agent"] + "\r\n";
+        header_buff += "Content-Length: " + headers["Content-Length"] + "\r\n";
+        header_buff += "Content-Type: " + headers["Content-Type"] + "\r\n";
+        header_buff += "\r\n";
+        sendn(proxyFd, header_buff);
+        recvn(proxyFd, outBuffer);
+        return ANALYSIS_SUCC;
+    }
     // 判断文件是否存在
+    fileName = root + fileName;
     struct stat sbuf;
     if (stat(fileName.c_str(), &sbuf) < 0) {
         handleError(fd, 404, "NOT FOUND!");
@@ -500,6 +524,7 @@ AnalysisState HttpData::analysisRequest() {
             }
             fastCgi->sendEndRequestRecord();
             body = fastCgi->recvRecord();
+            filetype = "text/html";
         } else {
             size_t dot_pos = fileName.find_last_of(".");
             if (dot_pos == std::string::npos) {
@@ -547,16 +572,6 @@ AnalysisState HttpData::analysisRequest() {
         outBuffer += header;
         outBuffer += body;
 
-// 反向代理
-//        int proxyFd = proxySocket("127.0.0.1", 80);
-//        std::string header_buff;
-//        header_buff += "GET / HTTP/1.1\r\n";
-//        header_buff += "Host: soarteam.cn\r\n";
-//        header_buff += "User-Agent: Mozilla\r\n";
-//        header_buff += "\r\n";
-//        sendn(proxyFd, header_buff);
-//        recvn(proxyFd, outBuffer);
-//        std::cout << outBuffer << std::endl;
         return ANALYSIS_SUCC;
     }
     return ANALYSIS_ERR;

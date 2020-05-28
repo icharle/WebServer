@@ -33,6 +33,8 @@ public:
 
     std::string getHostRoot(const char *host);
 
+    std::string getPassProxy(const char *host);
+
     void getServerConfig(int &port, int &threadNum, int &backlog);
 
 public:

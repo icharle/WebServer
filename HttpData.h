@@ -120,6 +120,7 @@ private:
     bool isPHP;
     bool error;
     std::string root;
+    std::string passProxy;
     const static std::unordered_map<std::string, std::string> MimeType;
     std::map<std::string, std::string> headers;
     std::weak_ptr<TimerNode> timer;

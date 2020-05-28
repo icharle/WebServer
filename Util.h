@@ -27,4 +27,6 @@ size_t sendn(int fd, std::string &inBuffer);
 
 size_t recvn(int fd, std::string &outBuffer);
 
+void regexUrl(std::string url, std::string &host, int &port, std::string &ip);
+
 #endif //WEBNGINX_UTIL_H

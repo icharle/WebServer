@@ -6,8 +6,9 @@
 #include <stdio.h>
 #include "base/cJSON.h"
 #include "base/MutexLock.h"
+#include <iostream>
 
-Config* Config::instance = nullptr;
+Config *Config::instance = nullptr;
 MutexLock Config::mutex;
 
 Config::Config() {}
@@ -53,6 +54,31 @@ std::string Config::getHostRoot(const char *host) {
     }
     item = cJSON_GetObjectItem(item, "root");
     return item->valuestring;
+}
+
+std::string Config::getPassProxy(const char *host) {
+    cJSON *root = NULL;
+    cJSON *hosts = NULL;
+    cJSON *item = NULL;
+    root = cJSON_Parse(configBuf);
+
+    hosts = cJSON_GetObjectItem(root, "host");
+    item = cJSON_GetArrayItem(hosts, 0);
+    if (cJSON_HasObjectItem(item, host) == 1) {
+        item = cJSON_GetObjectItem(item, host);
+        if (cJSON_HasObjectItem(item, "proxy_pass") == 1) {
+            item = cJSON_GetObjectItem(item, "proxy_pass");
+            return item->valuestring;
+        }
+    } else {
+        // 返回默认站点
+        item = cJSON_GetObjectItem(item, "default");
+        if (cJSON_HasObjectItem(item, "proxy_pass") == 1) {
+            item = cJSON_GetObjectItem(item, "proxy_pass");
+            return item->valuestring;
+        }
+    }
+    return "";
 }
 
 void Config::getServerConfig(int &port, int &threadNum, int &backlog) {
