@@ -476,7 +476,7 @@ AnalysisState HttpData::analysisRequest() {
         handleError(fd, 404, "NOT FOUND!");
         return ANALYSIS_ERR;
     }
-    std::string header, body, filetype;
+    std::string header, body, outheader, outbody, filetype;
     char *data = static_cast<char *>(malloc(2048));
     // 反向代理 or 负载均衡
     // php-fpm动态处理 or 静态资源文件
@@ -491,12 +491,17 @@ AnalysisState HttpData::analysisRequest() {
 
         fastCgi->sendParams(const_cast<char *>("CONTENT_TYPE"),
                             const_cast<char *>(headers["Content-Type"].c_str()));
+        if (!query.empty()) {
+            fastCgi->sendParams(const_cast<char *>("QUERY_STRING"), const_cast<char *>(query.c_str()));
+        }
+        if (headers.find("Cookie") != headers.end()) {
+            fastCgi->sendParams(const_cast<char *>("HTTP_COOKIE"), const_cast<char *>(headers["Cookie"].c_str()));
+        }
         fastCgi->sendEndRequestRecord();
         fastCgi->sendPostStdinRecord(const_cast<char *>(inBuffer.c_str()), stoi(headers["Content-Length"]));
         fastCgi->sendEndPostStdinRecord();
         fastCgi->recvRecord(data);
-        body = data;
-        delete [] data;
+        fastCgi->headerAndContent(data, outheader, outbody);
         header += "HTTP/1.1 200 OK\r\n";
         if (headers.find("Connection") != headers.end() &&
             (headers["Connection"] == "Keep-Alive" || headers["Connection"] == "keep-alive")) {
@@ -504,12 +509,12 @@ AnalysisState HttpData::analysisRequest() {
             header += std::string("Connection: Keep-Alive\r\n");
             header += "Keep-Alive: timeout=" + std::to_string(DEFAULT_KEEP_ALIVE_TIME) + "\r\n";
         }
-        header += "Content-type: text/html\r\n";
-        header += "Content-length: " + std::to_string(body.size()) + "\r\n";
+        header += outheader;
+        header += "Content-length: " + std::to_string(outbody.size()) + "\r\n";
         header += "Server: WebServer\r\n";
         header += "\r\n";
         outBuffer += header;
-        outBuffer += body;
+        outBuffer += outbody;
         return ANALYSIS_SUCC;
     } else if (method == METHOD_GET) {
         if (isPHP) {
@@ -525,11 +530,12 @@ AnalysisState HttpData::analysisRequest() {
             if (!query.empty()) {
                 fastCgi->sendParams(const_cast<char *>("QUERY_STRING"), const_cast<char *>(query.c_str()));
             }
+            if (headers.find("Cookie") != headers.end()) {
+                fastCgi->sendParams(const_cast<char *>("HTTP_COOKIE"), const_cast<char *>(headers["Cookie"].c_str()));
+            }
             fastCgi->sendEndRequestRecord();
             fastCgi->recvRecord(data);
-            body = data;
-            delete [] data;
-            filetype = "text/html";
+            fastCgi->headerAndContent(data, outheader, outbody);
         } else {
             size_t dot_pos = fileName.find_last_of(".");
             if (dot_pos == std::string::npos) {
@@ -564,6 +570,8 @@ AnalysisState HttpData::analysisRequest() {
         }
 
         header += "HTTP/1.1 200 OK\r\n";
+        header += outheader;
+        body += outbody;
         if (headers.find("Connection") != headers.end() &&
             (headers["Connection"] == "Keep-Alive" || headers["Connection"] == "keep-alive")) {
             keepAlive = true;

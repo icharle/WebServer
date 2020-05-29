@@ -11,6 +11,8 @@
 
 static const int PARAMS_BUFF_LEN = 2048;  //环境参数buffer的大小
 static const int CONTENT_BUFF_LEN = 2048; //内容buffer的大小
+#define CR '\r'
+#define LF '\n'
 
 FastCgi::FastCgi() :
         socketFd(0),
@@ -119,7 +121,6 @@ int FastCgi::sendParams(char *name, char *value) {
     }
     memcpy(buf + FASTCGI_HEADER_LENGTH, bodyBuff, bodylen);
     // body - end
-    std::cout << bodyBuff << std::endl;
     ret = write(socketFd, buf, bodylen + FASTCGI_HEADER_LENGTH);
     assert(ret == bodylen + FASTCGI_HEADER_LENGTH);
     return 1;
@@ -204,4 +205,100 @@ void FastCgi::recvRecord(char *data) {
             read(socketFd, &endRequestBody, sizeof(endRequestBody));
         }
     }
+}
+
+void FastCgi::headerAndContent(char *p, std::string &outHeader, std::string &outBody) {
+
+    enum headerState {
+        H_START,
+        H_KEY,
+        H_SPACES_AFTER_COLON,
+        H_VALUE,
+        H_CR,
+        H_LF,
+        H_END_CR,
+        H_END_LF
+    } hState;
+
+    char *key_start, *key_end, *value_start, *value_end;
+    std::string header;
+    bool isFinish = false;
+    hState = H_START;
+    for (char *cur = p; (*cur != '\0' && !isFinish); cur++) {
+        switch (hState) {
+            case H_START:
+                if (*cur == CR || *cur == LF) {
+                    break;
+                }
+                key_start = cur;
+                hState = H_KEY;
+                break;
+
+            case H_KEY:
+                if (*cur == ':') {
+                    key_end = cur;
+                    hState = H_SPACES_AFTER_COLON;
+                    break;
+                }
+                break;
+
+            case H_SPACES_AFTER_COLON:
+                if (*cur == ' ') {
+                    break;
+                }
+                hState = H_VALUE;
+                value_start = cur;
+                break;
+
+            case H_VALUE:
+                if (*cur == CR) {
+                    value_end = cur;
+                    hState = H_CR;
+                }
+                break;
+            case H_CR:
+                if (*cur == LF) {
+                    // key - start
+                    while (key_start != key_end) {
+                        header += *key_start;
+                        key_start++;
+                    }
+                    header += ": ";
+                    // key - end
+                    // value - start
+                    while (value_start != value_end) {
+                        header += *value_start;
+                        value_start++;
+                    }
+                    header += "\r\n";
+                    // value - end
+                    hState = H_LF;
+                } else {
+                    isFinish = true;
+                }
+                break;
+            case H_LF:
+                if (*cur == CR) {
+                    hState = H_END_CR;
+                } else {
+                    key_start = cur;
+                    hState = H_KEY;
+                }
+                break;
+            case H_END_CR:
+                if (*cur == LF) {
+                    hState = H_END_LF;
+                } else {
+                    isFinish = true;
+                }
+                break;
+            case H_END_LF:
+                isFinish = true;
+                break;
+        }
+    }
+    outHeader = header;
+    outBody = value_end;
+    std::cout << "headerAndContent" << header << std::endl;
+    std::cout << "headerAndContent" << value_end << std::endl;
 }

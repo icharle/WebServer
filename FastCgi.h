@@ -2,7 +2,7 @@
 // Created by Icharle on 2020/5/24.
 // https://blog.csdn.net/shreck66/article/details/50355729
 //
-
+#include <string>
 #ifndef WEBNGINX_FASTCGI_H
 #define WEBNGINX_FASTCGI_H
 
@@ -97,10 +97,6 @@ public:
         requestId = requestId_;
     }
 
-    int makeNameValueBody(char *name, int nameLen,
-                          char *value, int valueLen,
-                          unsigned char *bodyBuffPtr, int *bodyLen);
-
     void connectFpm();
 
     int sendStartRequestRecord();
@@ -114,6 +110,8 @@ public:
     int sendEndRequestRecord();
 
     void recvRecord(char *data);
+
+    void headerAndContent(char *p, std::string &header, std::string &body);
 
 private:
     int socketFd;
