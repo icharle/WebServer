@@ -179,23 +179,27 @@ int FastCgi::sendEndRequestRecord() {
     }
 }
 
-void FastCgi::recvRecord(char *data) {
+void FastCgi::recvRecord(std::string &header, std::string &body) {
     FASTCGI_Header respHeader{};
 
     int contentLen;
     char paddingBuf[8];
+    char *data = nullptr;
+    int ret;
 
     while (read(socketFd, &respHeader, FASTCGI_HEADER_LENGTH) > 0) {
         if (respHeader.type == FASTCGI_STDOUT) {
             contentLen = (respHeader.contentLengthB1 << 8) + (respHeader.contentLengthB0);
-            readn(socketFd, data, contentLen);
-
+            data = (char *) malloc(contentLen);
+            ret = readn(socketFd, data, contentLen);
+            headerAndContent(data, ret, header, body);
             if (respHeader.paddingLength > 0) {
                 read(socketFd, paddingBuf, respHeader.paddingLength);
             }
         } else if (respHeader.type == FASTCGI_STDERR) {
             contentLen = (respHeader.contentLengthB1 << 8) + (respHeader.contentLengthB0);
-            read(socketFd, data, contentLen);
+            ret = readn(socketFd, data, contentLen);
+            headerAndContent(data, ret, header, body);
 
             if (respHeader.paddingLength > 0) {
                 read(socketFd, paddingBuf, respHeader.paddingLength);
@@ -205,9 +209,10 @@ void FastCgi::recvRecord(char *data) {
             read(socketFd, &endRequestBody, sizeof(endRequestBody));
         }
     }
+    free(data);
 }
 
-void FastCgi::headerAndContent(char *p, std::string &outHeader, std::string &outBody) {
+void FastCgi::headerAndContent(char *p, int len, std::string &outHeader, std::string &outBody) {
 
     enum headerState {
         H_START,
@@ -224,7 +229,8 @@ void FastCgi::headerAndContent(char *p, std::string &outHeader, std::string &out
     std::string header;
     bool isFinish = false;
     hState = H_START;
-    for (char *cur = p; (*cur != '\0' && !isFinish); cur++) {
+    char *cur = p;
+    for (; (*cur != '\0' && !isFinish); cur++) {
         switch (hState) {
             case H_START:
                 if (*cur == CR || *cur == LF) {
@@ -299,6 +305,6 @@ void FastCgi::headerAndContent(char *p, std::string &outHeader, std::string &out
     }
     outHeader = header;
     outBody = value_end;
-    std::cout << "headerAndContent" << header << std::endl;
-    std::cout << "headerAndContent" << value_end << std::endl;
+    // 截取body部分， 由于上一步read可能出现直到'\0'才结束，导致实际读取长度超过指定长度，超过部分字符异常(越界导致)
+    outBody = outBody.substr(2, len - outHeader.size());
 }

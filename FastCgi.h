@@ -109,9 +109,9 @@ public:
 
     int sendEndRequestRecord();
 
-    void recvRecord(char *data);
+    void recvRecord(std::string &header, std::string &body);
 
-    void headerAndContent(char *p, std::string &header, std::string &body);
+    void headerAndContent(char *p, int len, std::string &header, std::string &body);
 
 private:
     int socketFd;

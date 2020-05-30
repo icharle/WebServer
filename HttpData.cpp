@@ -477,7 +477,6 @@ AnalysisState HttpData::analysisRequest() {
         return ANALYSIS_ERR;
     }
     std::string header, body, outheader, outbody, filetype;
-    char *data = static_cast<char *>(malloc(2048));
     // 反向代理 or 负载均衡
     // php-fpm动态处理 or 静态资源文件
     if (method == METHOD_POST) {
@@ -500,8 +499,7 @@ AnalysisState HttpData::analysisRequest() {
         fastCgi->sendEndRequestRecord();
         fastCgi->sendPostStdinRecord(const_cast<char *>(inBuffer.c_str()), stoi(headers["Content-Length"]));
         fastCgi->sendEndPostStdinRecord();
-        fastCgi->recvRecord(data);
-        fastCgi->headerAndContent(data, outheader, outbody);
+        fastCgi->recvRecord(outheader, outbody);
         header += "HTTP/1.1 200 OK\r\n";
         if (headers.find("Connection") != headers.end() &&
             (headers["Connection"] == "Keep-Alive" || headers["Connection"] == "keep-alive")) {
@@ -515,6 +513,8 @@ AnalysisState HttpData::analysisRequest() {
         header += "\r\n";
         outBuffer += header;
         outBuffer += outbody;
+        outbody.clear();
+        outheader.clear();
         return ANALYSIS_SUCC;
     } else if (method == METHOD_GET) {
         if (isPHP) {
@@ -534,8 +534,7 @@ AnalysisState HttpData::analysisRequest() {
                 fastCgi->sendParams(const_cast<char *>("HTTP_COOKIE"), const_cast<char *>(headers["Cookie"].c_str()));
             }
             fastCgi->sendEndRequestRecord();
-            fastCgi->recvRecord(data);
-            fastCgi->headerAndContent(data, outheader, outbody);
+            fastCgi->recvRecord(outheader, outbody);
         } else {
             size_t dot_pos = fileName.find_last_of(".");
             if (dot_pos == std::string::npos) {
@@ -584,7 +583,8 @@ AnalysisState HttpData::analysisRequest() {
         header += "\r\n";
         outBuffer += header;
         outBuffer += body;
-
+        outbody.clear();
+        outheader.clear();
         return ANALYSIS_SUCC;
     }
     return ANALYSIS_ERR;
