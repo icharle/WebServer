@@ -5,7 +5,7 @@
 #ifndef WEBNGINX_CONFIG_H
 #define WEBNGINX_CONFIG_H
 
-#include "base/MutexLock.h"
+#include "../base/MutexLock.h"
 #include <string>
 
 class Config {

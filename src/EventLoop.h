@@ -10,9 +10,9 @@
 #include <assert.h>
 #include <vector>
 #include "Util.h"
-#include "base/MutexLock.h"
-#include "base/CurrentThread.h"
-#include "base/Thread.h"
+#include "../base/MutexLock.h"
+#include "../base/CurrentThread.h"
+#include "../base/Thread.h"
 #include "Epoll.h"
 #include "Channel.h"
 

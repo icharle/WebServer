@@ -4,8 +4,8 @@
 
 #include "Config.h"
 #include <stdio.h>
-#include "base/cJSON.h"
-#include "base/MutexLock.h"
+#include "../base/cJSON.h"
+#include "../base/MutexLock.h"
 #include <iostream>
 
 Config *Config::instance = nullptr;

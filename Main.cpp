@@ -1,6 +1,6 @@
-#include "EventLoop.h"
-#include "WebServer.h"
-#include "Config.h"
+#include "src/EventLoop.h"
+#include "src/WebServer.h"
+#include "src/Config.h"
 
 Config *config(Config::getInstance());
 

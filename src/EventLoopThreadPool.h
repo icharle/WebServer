@@ -5,7 +5,7 @@
 #ifndef WEBNGINX_EVENTLOOPTHREADPOOL_H
 #define WEBNGINX_EVENTLOOPTHREADPOOL_H
 
-#include "base/noncopyable.h"
+#include "../base/noncopyable.h"
 #include "EventLoop.h"
 #include "EventLoopThread.h"
 #include <vector>
