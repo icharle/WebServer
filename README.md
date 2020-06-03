@@ -108,7 +108,7 @@ request_slowlog_timeout = 30
 slowlog = var/log/slow.log
 
 # 运行启动
-nohup ./webd >> web.log 2>&1 &
+nohup ./bin/webserver >> web.log 2>&1 &
 ```
 
 **注意：**
