@@ -103,7 +103,7 @@ public:
 
 private:
     EventLoop *loop;
-    FastCgi *fastCgi;
+    std::shared_ptr<FastCgi> fastCgi;
     int fd;
     std::shared_ptr<Channel> channel;
     HttpMethod method;
