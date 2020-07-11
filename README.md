@@ -26,17 +26,21 @@
 ## ab压测(nginx vs webserver)
 ### ab -n 1000 -c 300
 * nginx
-![ab-nginx-300](./docs/image/ab-nginx-300.png)
+
+    ![ab-nginx-300](./docs/image/ab-nginx-300.png)
 
 * webserver
-![ab-webserver-300](./docs/image/ab-webserver-300.png)
+
+    ![ab-webserver-300](./docs/image/ab-webserver-300.png)
 
 ### ab -n 1000 -c 500
 * nginx
-![ab-nginx-500](./docs/image/ab-nginx-500.png)
+
+    ![ab-nginx-500](./docs/image/ab-nginx-500.png)
 
 * webserver
-![ab-webserver-500](./docs/image/ab-webserver-500.png)
+
+    ![ab-webserver-500](./docs/image/ab-webserver-500.png)
 
 ## 演示
 * [作为静态webserver](http://47.115.26.47/)
